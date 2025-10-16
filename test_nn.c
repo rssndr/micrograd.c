@@ -4,6 +4,20 @@
 #include <time.h>
 #include "nn.h"
 
+void free_value(Value* v) {
+    if (v == NULL) return;
+    static Value* visited[10000]; // Avoid double-free
+    static int visited_size = 0;
+    for (int i = 0; i < visited_size; i++) {
+        if (visited[i] == v) return;
+    }
+    visited[visited_size++] = v;
+    free_value(v->prev[0]);
+    free_value(v->prev[1]);
+    free(v);
+    if (visited_size >= 10000) visited_size = 0; // Reset for next use
+}
+
 // Test MLP initialization and parameter count
 void test_mlp_init() {
     MLP mlp;
@@ -159,6 +173,10 @@ void test_training() {
         
         // Update weights (SGD)
         for(int i=0; i<mlp_n_params(&mlp); i++) {
+            if (params[i] == NULL) {
+                fprintf(stderr, "NULL param at index %d\n", i);
+                exit(EXIT_FAILURE);
+            }
             // Update moments
             m[i] = beta1 * m[i] + (1 - beta1) * params[i]->grad;
             v[i] = beta2 * v[i] + (1 - beta2) * pow(params[i]->grad, 2);
@@ -176,10 +194,12 @@ void test_training() {
         printf("Training Step %d - Average Loss: %.8f\n", epoch+1, avg_loss->data);
         
         // Cleanup
-        free(avg_loss);
-        free(divisor);
-        free(total_loss);
-        for (int i = 0; i < 4; i++) free(losses[i]);
+        free_value(avg_loss); // Frees avg_loss, total_loss, losses, and their graphs
+        free_value(divisor);
+        for (int i = 0; i < 4; i++) {
+            free_value(losses[i]->prev[0]); // Free sub(output[0], targets[i])
+            free_value(losses[i]); // Already freed via avg_loss, but ensure no double-free
+        }
     }
 
     // After training loop: Evaluate final predictions and loss
@@ -193,16 +213,14 @@ void test_training() {
         // Print predicted vs actual values
         printf("Input %d: Predicted = %.8f, Actual = %.8f\n", i+1, output[0]->data, targets[i]->data);
 
+        free_value(loss);
         free(output);  // Free output array (not Values)
     }
     Value* final_avg_loss = truediv(final_loss, create_value(4.0));
     printf("Final Average Loss: %.8f\n", final_avg_loss->data);
 
-    // Cleanup final loss
-    free(final_avg_loss);
-    free(final_loss);
-
     // Cleanup
+    free_value(final_avg_loss);
     free(m);
     free(v);
     free(params);

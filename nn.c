@@ -199,20 +199,24 @@ int mlp_n_params(MLP *mlp) {
 Value** mlp_parameters(MLP *mlp) {
     int params_per_neuron = mlp->layers[0].neurons[0].n_inputs + 1;
     int n_params = mlp_n_params(mlp);
-
     Value** params = (Value**)malloc(n_params * sizeof(Value*));
-    if (params == NULL) return NULL;
-
+    if (params == NULL) {
+        fprintf(stderr, "Failed to allocate params array\n");
+        exit(EXIT_FAILURE);
+    }
     int pi = 0;
     for (int i = 0; i < mlp->n_layers; i++) {
         Layer *layer = &mlp->layers[i];
         Value** layer_params = layer_parameters(layer);
         for (int j = 0; j < layer->n_neurons * params_per_neuron; j++) {
+            if (layer_params[j] == NULL) {
+                fprintf(stderr, "NULL parameter at layer %d, index %d\n", i, j);
+                exit(EXIT_FAILURE);
+            }
             params[pi++] = layer_params[j];
         }
         free(layer_params);
     }
-
     return params;
 }
 
