@@ -2,6 +2,8 @@
 
 micrograd.c is a C implementation of a tiny autograd engine, inspired by Andrej Karpathy's micrograd.
 
+More details on my website: <a href="https://andrearossetti.me/page.html?src=projects/micrograd.md" target="_blank">andrearossetti.me</a>
+
 ## Description
 
 The autograd engine handles automatic differentiation, enabling the computation of gradients for tensor operations such as addition, multiplication, power, and ReLU activation. The neural network components include neurons, layers, and multi-layer perceptrons (MLPs) for building and training models.
