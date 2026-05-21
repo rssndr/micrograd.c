@@ -4,52 +4,6 @@
 #include <time.h>
 #include "nn.h"
 
-/* ============================================================
- * Graph memory management
- * ============================================================
- *
- * OWNERSHIP MODEL
- * ───────────────
- * There are three categories of Value nodes in a computation graph:
- *
- *   1. MLP PARAMETERS (weights & biases): owned by the MLP struct,
- *      allocated in neuron_init(), freed in mlp_free().  Must never
- *      be touched by test-level cleanup code.
- *
- *   2. INPUT / TARGET leaf Values: allocated by the test, passed into
- *      mlp_call() or used in loss expressions.  They appear as prev[]
- *      leaves of the graph.  The test owns and must free them — but
- *      only once, explicitly, NOT by the graph-walker.
- *
- *   3. TRANSIENT intermediate Values: the mul/add/relu/power/etc.
- *      nodes created during a forward pass or loss computation.
- *      They exist only for the duration of one epoch and must be freed
- *      after backward() has run.
- *
- * The graph-walker (free_graph_safe) must free category 3 and nothing
- * else.  It achieves this by refusing to descend into any node that
- * belongs to an "exclude" set supplied by the caller — which contains
- * both the MLP parameters AND the input/target Values.
- *
- * ORIGINAL BUG CHAIN
- * ──────────────────
- * 1. free_value() used a static visited[] array shared across calls.
- *    Resetting it at 10 000 entries discarded tracking state mid-walk,
- *    causing double-frees.
- *
- * 2. free_value() walked through prev[] into weight/bias Values and
- *    freed them.  On the next epoch mlp_zero_grad() wrote to freed
- *    memory → "Invalid write" in valgrind → segfault after epoch 1.
- *
- * 3. free_value(avg_loss) was followed by free_value(divisor) and
- *    free_value(losses[i]) — all of those nodes had already been freed
- *    by the first call → double-free cascade.
- *
- * 4. After free_graph_safe() was introduced it freed input/target
- *    leaf Values (they are prev[] children, not in the params set),
- *    and then the test called free(inputs[i][j]) again → double-free.
- */
-
 /* ── free_graph_safe ─────────────────────────────────────────────────────── */
 /*
  * Recursively frees every transient node reachable from `root`, EXCEPT for
@@ -145,7 +99,6 @@ void test_forward_pass() {
         {create_value(1.0), create_value(1.0),  create_value(-1.0)}
     };
 
-    /* Build exclusion set: params + inputs (no targets here) */
     int n_excl;
     Value** excl = build_excl(params, n_p, inputs, 4, NULL, 0, &n_excl);
 
@@ -282,12 +235,6 @@ void test_training() {
 
         printf("Training Step %d - Average Loss: %.8f\n", epoch + 1, avg_loss->data);
 
-        /*
-         * Free the epoch graph.  excl[] contains params + inputs + targets,
-         * so the walker stops at all persistent nodes.  divisor and
-         * total_loss are interior nodes reached automatically — do NOT
-         * free them separately.
-         */
         free_graph_safe(avg_loss, excl, n_excl);
     }
 
