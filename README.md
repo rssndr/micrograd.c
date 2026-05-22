@@ -1,32 +1,52 @@
 # micrograd.c
 
-micrograd.c is a C implementation of a tiny autograd engine, inspired by Andrej Karpathy's micrograd.
+A C implementation of a scalar-valued autograd engine and neural network library, inspired by Andrej Karpathy's [micrograd](https://github.com/karpathy/micrograd).
 
 More details on my website: <a href="https://andrearossetti.me/page.html?src=projects/micrograd.md" target="_blank">andrearossetti.me</a>
 
-## Description
+## What it does
 
-The autograd engine handles automatic differentiation, enabling the computation of gradients for tensor operations such as addition, multiplication, power, and ReLU activation. The neural network components include neurons, layers, and multi-layer perceptrons (MLPs) for building and training models.
+Builds a computation graph of scalar `Value` nodes as operations are performed, then runs backpropagation through that graph to compute gradients automatically. On top of the engine, a simple MLP implementation allows you to define, train, and evaluate feedforward networks.
 
-## Training Loop
+A 3→4→4→1 network trained with Adam on a toy 4-sample dataset reaches near-zero MSE loss within 200 epochs.
 
-In the training loop, the code performs forward passes to compute the outputs and the loss, followed by a backward pass to compute gradients. The parameters are then updated using the Adam optimizer.
+## Project Structure
 
-## Tests
-
-The tests validate the functionality of the autograd engine and neural network components. They check the correctness of gradient computations, forward and backward passes, and overall network behavior.
-
-## Makefile
-
-The Makefile is used to compile the project. It defines rules for building the test executables.
-
-### Usage
-
-To build the project, run:
-
-```sh
-make
+```
+.
+├── engine.h / engine.c     # Value struct, operations (add, mul, relu, …), backward()
+├── nn.h / nn.c             # Neuron, Layer, MLP
+├── test_engine.c           # Unit tests for individual operations
+├── test_nn.c               # MLP init, forward pass, backward pass, training loop
+└── Makefile
 ```
 
-This will compile the source files and produce the test_engine and test_nn executables. You can then run these executables to test the autograd engine and neural network components.
+## How to Run
 
+```sh
+# Build
+make
+
+# Run engine unit tests
+./test_engine
+
+# Run MLP tests + training
+./test_nn
+```
+
+## Features
+
+- Dynamic computation graph — built on the fly as operations execute
+- Reverse-mode autodiff via topological sort and backpropagation
+- Operations: `add`, `mul`, `power`, `relu` (leaky), `neg`, `sub`, `truediv`
+- Leaky ReLU activation (leak = 0.01) to prevent dying neurons
+- Configurable MLP: arbitrary layer sizes, nonlinearity per layer
+- Adam optimiser with bias correction
+- Memory-safe: graph walker respects parameter ownership, zero errors under Valgrind
+
+## Demo
+![](demo.gif)
+
+## License
+
+MIT
