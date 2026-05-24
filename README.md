@@ -2,7 +2,7 @@
 
 A C implementation of a scalar-valued autograd engine and neural network library, inspired by Andrej Karpathy's [micrograd](https://github.com/karpathy/micrograd).
 
-More details on my website: <a href="https://andrearossetti.me/page.html?src=projects/micrograd.md" target="_blank">andrearossetti.me</a>
+More details on my website: <a href="https://andrearossetti.me/projects/micrograd" target="_blank">andrearossetti.me</a>
 
 ## What it does
 
